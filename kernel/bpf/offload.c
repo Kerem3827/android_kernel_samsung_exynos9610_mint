@@ -31,8 +31,9 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 	struct bpf_prog_offload *offload;
 	int err;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	if (attr->prog_type != BPF_PROG_TYPE_SCHED_CLS &&
+	    attr->prog_type != BPF_PROG_TYPE_XDP)
+		return -EINVAL;
 
 	if (attr->prog_flags)
 		return -EINVAL;

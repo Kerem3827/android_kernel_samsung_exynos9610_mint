@@ -1048,6 +1048,7 @@ next:
 	return 0;
 }
 
+static
 struct bpf_verifier_state *skip_callee(struct bpf_verifier_env *env,
 				       const struct bpf_verifier_state *state,
 				       struct bpf_verifier_state *parent,
@@ -1093,7 +1094,7 @@ bug:
 	verbose(env, "verifier bug regno %d tmp %p\n", regno, tmp);
 	verbose(env, "regno %d parent frame %d current frame %d\n",
 		regno, parent->curframe, state->curframe);
-	return 0;
+	return NULL;
 }
 
 static int mark_reg_read(struct bpf_verifier_env *env,

@@ -2407,7 +2407,7 @@ static int bpf_btf_get_info_by_fd(struct btf *btf,
 	u32 info_len = attr->info.info_len;
 	int err;
 
-	err = check_uarg_tail_zero(uinfo, sizeof(*uinfo), info_len);
+	err = bpf_check_uarg_tail_zero(uinfo, sizeof(*uinfo), info_len);
 	if (err)
 		return err;
 

@@ -144,6 +144,30 @@ struct page {
 		atomic_t _mapcount;
 
 		/*
+		 * Mapping-private opaque data:
+		 * Usually used for buffer_heads if PagePrivate
+		 * Used for swp_entry_t if PageSwapCache
+		 * Indicates order in the buddy system if PageBuddy
+		 */
+		unsigned long private;
+#if USE_SPLIT_PTE_PTLOCKS
+#if ALLOC_SPLIT_PTLOCKS
+		spinlock_t *ptl;
+#else
+		spinlock_t ptl;
+#endif
+#endif
+		void *s_mem;			/* slab first object */
+		unsigned long counters;		/* SLUB */
+		struct {			/* SLUB */
+			unsigned inuse:16;
+			unsigned objects:15;
+			unsigned frozen:1;
+		};
+	};
+
+	union {
+		/*
 		 * If the page is neither PageSlab nor mappable to userspace,
 		 * the value stored here may help determine what this page
 		 * is used for.  See page-flags.h for a list of page types

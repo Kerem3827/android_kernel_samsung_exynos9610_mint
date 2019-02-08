@@ -288,6 +288,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 		if (!xs->umem)
 			return -EINVAL;
 
+		/* Matches the smp_wmb() in XDP_UMEM_REG */
+		smp_rmb();
 		if (offset == XDP_UMEM_PGOFF_FILL_RING)
 			q = xs->umem->fq;
 		else
@@ -297,6 +299,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	if (!q)
 		return -EINVAL;
 
+	/* Matches the smp_wmb() in xsk_init_queue */
+	smp_rmb();
 	qpg = virt_to_head_page(q->ring);
 	if (size > (PAGE_SIZE << compound_order(qpg)))
 		return -EINVAL;

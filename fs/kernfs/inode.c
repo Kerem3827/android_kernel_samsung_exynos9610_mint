@@ -31,7 +31,7 @@ static const struct inode_operations kernfs_iops = {
 	.listxattr	= kernfs_iop_listxattr,
 };
 
-static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
+static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, int alloc)
 {
 	static DEFINE_MUTEX(iattr_mutex);
 	struct kernfs_iattrs *ret;
@@ -39,7 +39,7 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 
 	mutex_lock(&iattr_mutex);
 
-	if (kn->iattr)
+	if (kn->iattr || !alloc)
 		goto out_unlock;
 
 	kn->iattr = kzalloc(sizeof(struct kernfs_iattrs), GFP_KERNEL);
@@ -61,6 +61,16 @@ out_unlock:
 	ret = kn->iattr;
 	mutex_unlock(&iattr_mutex);
 	return ret;
+}
+
+static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
+{
+	return __kernfs_iattrs(kn, 1);
+}
+
+static struct kernfs_iattrs *kernfs_iattrs_noalloc(struct kernfs_node *kn)
+{
+	return __kernfs_iattrs(kn, 0);
 }
 
 int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
@@ -313,9 +323,9 @@ static int kernfs_xattr_get(const struct xattr_handler *handler,
 	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_iattrs *attrs;
 
-	attrs = kernfs_iattrs(kn);
+	attrs = kernfs_iattrs_noalloc(kn);
 	if (!attrs)
-		return -ENOMEM;
+		return -ENODATA;
 
 	return simple_xattr_get(&attrs->xattrs, name, value, size);
 }

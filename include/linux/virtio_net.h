@@ -89,7 +89,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 					return -EINVAL;
 			}
 retry:
-			if (!skb_flow_dissect_flow_keys_basic(skb, &keys,
+			if (!skb_flow_dissect_flow_keys_basic(NULL, skb, &keys,
 							      NULL, 0, 0, 0,
 							      0)) {
 				/* UFO does not specify ipv4 or 6: try both */

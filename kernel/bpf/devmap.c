@@ -347,6 +347,7 @@ void __dev_map_flush(struct bpf_map *map)
 	unsigned long *bitmap = this_cpu_ptr(dtab->flush_needed);
 	u32 bit;
 
+	rcu_read_lock();
 	for_each_set_bit(bit, bitmap, map->max_entries) {
 		struct bpf_dtab_netdev *dev = READ_ONCE(dtab->netdev_map[bit]);
 		struct net_device *netdev;
@@ -362,6 +363,7 @@ void __dev_map_flush(struct bpf_map *map)
 		if (likely(netdev->netdev_ops->ndo_xdp_flush))
 			netdev->netdev_ops->ndo_xdp_flush(netdev);
 	}
+	rcu_read_unlock();
 }
 
 /* rcu_read_lock (from syscall and BPF contexts) ensures that if a delete and/or
@@ -401,12 +403,14 @@ static void dev_map_flush_old(struct bpf_dtab_netdev *dev)
 		unsigned long *bitmap;
 		int cpu;
 
+		rcu_read_lock();
 		for_each_online_cpu(cpu) {
 			bitmap = per_cpu_ptr(dev->dtab->flush_needed, cpu);
 			__clear_bit(dev->bit, bitmap);
 
 			fl->netdev_ops->ndo_xdp_flush(dev->dev);
 		}
+		rcu_read_unlock();
 	}
 }
 

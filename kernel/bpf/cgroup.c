@@ -774,6 +774,7 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sysctl);
 
+#ifdef CONFIG_NET
 static bool __cgroup_bpf_prog_array_is_empty(struct cgroup *cgrp,
 					     enum bpf_attach_type attach_type)
 {
@@ -968,6 +969,7 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_getsockopt);
+#endif
 
 static const struct bpf_func_proto *
 sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
@@ -1028,10 +1030,12 @@ static const struct bpf_func_proto *
 cg_sockopt_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
+#ifdef CONFIG_NET
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+#endif
 #ifdef CONFIG_INET
 	case BPF_FUNC_tcp_sock:
 		return &bpf_tcp_sock_proto;

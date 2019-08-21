@@ -869,7 +869,11 @@ static void mark_reg_unknown(struct bpf_verifier_env *env,
 			__mark_reg_not_init(regs + regno);
 		return;
 	}
-	__mark_reg_unknown(regs + regno);
+	regs += regno;
+	__mark_reg_unknown(regs);
+	/* constant backtracking is enabled for root without bpf2bpf calls */
+	regs->precise = env->subprog_cnt > 1 || !env->allow_ptr_leaks ?
+			true : false;
 }
 
 static void __mark_reg_not_init(struct bpf_reg_state *reg)

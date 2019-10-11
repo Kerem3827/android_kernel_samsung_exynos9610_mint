@@ -2169,19 +2169,44 @@ static inline bool cow_user_page(struct page *dst, struct page *src,
 			goto pte_unlock;
 		}
 
-		/*
-		 * The same page can be mapped back since last copy attampt.
-		 * Try to copy again under PTL.
-		 */
-		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE)) {
+	/*
+	 * On architectures with software "accessed" bits, we would
+	 * take a double page fault, so mark it accessed here.
+	 */
+	force_mkyoung = arch_faults_on_old_pte() && !pte_young(vmf->orig_pte);
+	if (force_mkyoung) {
+		pte_t entry;
+
+		vmf->pte = pte_offset_map_lock(mm, vmf->pmd, addr, &vmf->ptl);
+		if (!likely(pte_same(*vmf->pte, vmf->orig_pte))) {
 			/*
-			 * Give a warn in case there can be some obscure
-			 * use-case
+			 * Other thread has already handled the fault
+			 * and we don't need to do anything. If it's
+			 * not the case, the fault will be triggered
+			 * again on the same address.
 			 */
-warn:
-			WARN_ON_ONCE(1);
-			clear_page(kaddr);
+			ret = false;
+			goto pte_unlock;
 		}
+
+		entry = pte_mkyoung(vmf->orig_pte);
+		if (ptep_set_access_flags(vma, addr, vmf->pte, entry, 0))
+			update_mmu_cache(vma, addr, vmf->pte);
+	}
+
+	/*
+	 * This really shouldn't fail, because the page is there
+	 * in the page tables. But it might just be unreadable,
+	 * in which case we just give up and fill the result with
+	 * zeroes.
+	 */
+	if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE)) {
+		/*
+		 * Give a warn in case there can be some obscure
+		 * use-case
+		 */
+		WARN_ON_ONCE(1);
+		clear_page(kaddr);
 	}
 
 	ret = true;

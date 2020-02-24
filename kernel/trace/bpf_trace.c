@@ -72,7 +72,6 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(trace_call_bpf);
 
 BPF_CALL_3(bpf_probe_read, void *, dst, u32, size, const void *, unsafe_ptr)
 {

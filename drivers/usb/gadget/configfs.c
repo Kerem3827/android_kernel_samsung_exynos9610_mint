@@ -166,29 +166,7 @@ struct gadget_config_name {
 	struct list_head list;
 };
 
-#ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
-int dwc3_gadget_get_cmply_link_state_wrapper(void)
-{
-	struct gadget_info *dev;
-	struct usb_composite_dev *cdev;
-	struct usb_gadget		*gadget;
-	int ret = -ENODEV;
-
-	if (android_device && !IS_ERR(android_device)) {
-		dev = dev_get_drvdata(android_device);
-		cdev = &dev->cdev;
-		if (cdev) {
-		 	gadget = cdev->gadget;
-			 if (gadget)
-				ret = dwc3_gadget_get_cmply_link_state(gadget);
-			 else
-			 	pr_err("usb: %s:gadget pointer is null\n", __func__);
-		 }
-	}
-	return ret;
-}
-EXPORT_SYMBOL(dwc3_gadget_get_cmply_link_state_wrapper);
-#endif
+#define USB_MAX_STRING_WITH_NULL_LEN	(USB_MAX_STRING_LEN+1)
 
 static int usb_string_copy(const char *s, char **s_copy)
 {
@@ -196,23 +174,23 @@ static int usb_string_copy(const char *s, char **s_copy)
 	char *str;
 	char *copy = *s_copy;
 	ret = strlen(s);
-	if (ret > MAX_USB_STRING_LEN)
+	if (ret > USB_MAX_STRING_LEN)
 		return -EOVERFLOW;
 
 	if (copy) {
 		str = copy;
 	} else {
-		str = kmalloc(MAX_USB_STRING_WITH_NULL_LEN, GFP_KERNEL);
+		str = kmalloc(USB_MAX_STRING_WITH_NULL_LEN, GFP_KERNEL);
 		if (!str)
 			return -ENOMEM;
 	}
-	strncpy(str, s, MAX_USB_STRING_WITH_NULL_LEN);
-
+	strcpy(str, s);
 	if (str[ret - 1] == '\n')
 		str[ret - 1] = '\0';
 	*s_copy = str;
 	return 0;
 }
+
 #ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 static int set_alt_serialnumber(struct gadget_strings *gs)
 {

@@ -2488,7 +2488,7 @@ static const struct bpf_func_proto bpf_skb_change_tail_proto = {
 BPF_CALL_3(sk_skb_change_tail, struct sk_buff *, skb, u32, new_len,
 	   u64, flags)
 {
-	int ret = __bpf_skb_change_tail(skb, new_len, flags);
+		int ret = __bpf_skb_change_tail(skb, new_len, flags);
 	bpf_compute_data_end_sk_skb(skb);
 	return ret;
 }

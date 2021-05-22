@@ -3574,6 +3574,13 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	default:
 		break;
 	}
+	if (ptr_reg->type == PTR_TO_MAP_VALUE) {
+		if (!env->allow_ptr_leaks && !known && (smin_val < 0) != (smax_val < 0)) {
+			verbose("R%d has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root\n",
+				off_reg == dst_reg ? dst : src);
+			return -EACCES;
+		}
+	}
 
 	/* In case of 'scalar += pointer', dst_reg inherits pointer type and id.
 	 * The id may be overwritten later if we create a new variable offset.
@@ -3594,14 +3601,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	switch (opcode) {
 	case BPF_ADD:
-<<<<<<< HEAD
-=======
 		ret = sanitize_ptr_alu(env, insn, ptr_reg, dst_reg, smin_val < 0);
 		if (ret < 0) {
 			verbose("R%d tried to add from different maps, paths, or prohibited types\n", dst);
 			return ret;
 		}
->>>>>>> 22593018a (Merge 4.14.227 into android-4.14-stable)
 		/* We can take a fixed offset as long as it doesn't overflow
 		 * the s32 'off' field
 		 */
@@ -7024,12 +7028,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 				*patch++ = BPF_ALU64_REG(BPF_OR, BPF_REG_AX, off_reg);
 				*patch++ = BPF_ALU64_IMM(BPF_NEG, BPF_REG_AX, 0);
 				*patch++ = BPF_ALU64_IMM(BPF_ARSH, BPF_REG_AX, 63);
-				if (issrc) {
-					*patch++ = BPF_ALU64_REG(BPF_AND, BPF_REG_AX, off_reg);
-					insn->src_reg = BPF_REG_AX;
-				} else {
-					*patch++ = BPF_ALU64_REG(BPF_AND, BPF_REG_AX, off_reg);
-				}
+				*patch++ = BPF_ALU64_REG(BPF_AND, BPF_REG_AX, off_reg);
 			}
 
 			if (!issrc)
@@ -7051,7 +7050,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			env->prog = prog = new_prog;
 			insn      = new_prog->insnsi + i + delta;
 			continue;
-		}
+
 
 		if (insn->code != (BPF_JMP | BPF_CALL))
 			continue;

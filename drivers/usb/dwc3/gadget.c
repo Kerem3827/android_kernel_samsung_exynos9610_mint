@@ -1932,11 +1932,20 @@ static void dwc3_gadget_enable_irq(struct dwc3 *dwc)
 
 	/* Enable all but Start and End of Frame IRQs */
 	reg = (DWC3_DEVTEN_VNDRDEVTSTRCVEDEN |
+			DWC3_DEVTEN_EVNTOVERFLOWEN |
+			DWC3_DEVTEN_CMDCMPLTEN |
+			DWC3_DEVTEN_ERRTICERREN |
 			DWC3_DEVTEN_WKUPEVTEN |
-			DWC3_DEVTEN_ULSTCNGEN |
 			DWC3_DEVTEN_CONNECTDONEEN |
 			DWC3_DEVTEN_USBRSTEN |
 			DWC3_DEVTEN_DISCONNEVTEN);
+
+	if (dwc->revision < DWC3_REVISION_250A)
+		reg |= DWC3_DEVTEN_ULSTCNGEN;
+
+	/* On 2.30a and above this bit enables U3/L2-L1 Suspend Events */
+	if (dwc->revision >= DWC3_REVISION_230A)
+		reg |= DWC3_DEVTEN_EOPFEN;
 
 	dwc3_writel(dwc->regs, DWC3_DEVTEN, reg);
 }
@@ -1946,6 +1955,7 @@ static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
 	/* mask all interrupts */
 	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
 }
+
 
 static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 {

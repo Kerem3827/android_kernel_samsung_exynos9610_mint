@@ -3261,36 +3261,36 @@ enum {
 };
 
 static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
-			      u32 *ptr_limit, bool mask_to_left)
+			      u32 *alu_limit, bool mask_to_left)
 {
 	u32 off, max;
+
 
 	switch (ptr_reg->type) {
 	case PTR_TO_STACK:
 		/* Offset 0 is out-of-bounds, but acceptable start for the
-		 * left direction, see BPF_REG_FP.
+		 * left direction, see BPF_REG_FP. Also, unknown scalar
+		 * offset where we would need to deal with min/max bounds is
+		 * currently prohibited for unprivileged.
 		 */
 		max = MAX_BPF_STACK + mask_to_left;
-		off = ptr_reg->off + ptr_reg->var_off.value;
-		if (mask_to_left)
-			*ptr_limit = MAX_BPF_STACK + off;
-		else
-			*ptr_limit = -off - 1;
-		return *ptr_limit >= max ? -ERANGE : 0;
-
+				ptr_limit = -(ptr_reg->var_off.value + ptr_reg->off);
+		break;
 	case PTR_TO_MAP_VALUE:
 		max = ptr_reg->map_ptr->value_size;
-		if (mask_to_left) {
-			*ptr_limit = ptr_reg->umax_value + ptr_reg->off;
-		} else {
-			off = ptr_reg->smin_value + ptr_reg->off;
-			*ptr_limit = ptr_reg->map_ptr->value_size - off - 1;
-		}
-		return *ptr_limit >= max ? -ERANGE : 0;
+		ptr_limit = (mask_to_left ?
+			     ptr_reg->smin_value :
+			     ptr_reg->umax_value) + ptr_reg->off;
+		break;
 
 	default:
 		return REASON_TYPE;
 	}
+
+	if (ptr_limit >= max)
+		return REASON_LIMIT;
+	*alu_limit = ptr_limit;
+	return 0;
 }
 
 
@@ -3381,6 +3381,7 @@ static int sanitize_ptr_alu(struct bpf_verifier_env *env,
 	info->mask_to_left = (opcode == BPF_ADD && off_is_neg) ||
 			     (opcode == BPF_SUB && !off_is_neg);
 
+
 	err = retrieve_ptr_limit(ptr_reg, &alu_limit, info->mask_to_left);
 	if (err < 0)
 		return err;
@@ -3444,27 +3445,28 @@ static int sanitize_err(struct bpf_verifier_env *env,
 
 	switch (reason) {
 	case REASON_BOUNDS:
-		verbose(env, "R%d has unknown scalar with mixed signed bounds, %s\n",
+			verbose("R%d has unknown scalar with mixed signed bounds, %s\n",
 			off_reg == dst_reg ? dst : src, err);
 		break;
 	case REASON_TYPE:
-		verbose(env, "R%d has pointer with unsupported alu operation, %s\n",
+		verbose("R%d has pointer with unsupported alu operation, %s\n",
 			off_reg == dst_reg ? src : dst, err);
 		break;
 	case REASON_PATHS:
-		verbose(env, "R%d tried to %s from different maps, paths or scalars, %s\n",
+		verbose("R%d tried to %s from different maps, paths or scalars, %s\n",
 			dst, op, err);
 		break;
 	case REASON_LIMIT:
-		verbose(env, "R%d tried to %s beyond pointer bounds, %s\n",
+		verbose("R%d tried to %s beyond pointer bounds, %s\n",
 			dst, op, err);
 		break;
 	case REASON_STACK:
-		verbose(env, "R%d could not be pushed for speculative verification, %s\n",
+		verbose("R%d could not be pushed for speculative verification, %s\n",
 			dst, err);
 		break;
 	default:
-		verbose(env, "verifier internal error: unknown reason (%d)\n",
+		verbose("verifier internal error: unknown reason (%d)\n",
+
 			reason);
 		break;
 	}
@@ -3488,14 +3490,16 @@ static int sanitize_check_bounds(struct bpf_verifier_env *env,
 	case PTR_TO_STACK:
 		if (check_stack_access(env, dst_reg, dst_reg->off +
 				       dst_reg->var_off.value, 1)) {
-			verbose(env, "R%d stack pointer arithmetic goes out of range, "
+			verbose("R%d stack pointer arithmetic goes out of range, "
 				"prohibited for !root\n", dst);
 			return -EACCES;
 		}
 		break;
 	case PTR_TO_MAP_VALUE:
 		if (check_map_access(env, dst, dst_reg->off, 1)) {
-			verbose(env, "R%d pointer arithmetic of map value goes out of range, "
+			verbose("R%d pointer arithmetic of map value goes out of range, "
+				"prohibited for !root\n", dst);
+
 				"prohibited for !root\n", dst);
 			return -EACCES;
 		}
@@ -3527,7 +3531,9 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	    umin_ptr = ptr_reg->umin_value, umax_ptr = ptr_reg->umax_value;
 	struct bpf_sanitize_info info = {};
 	u8 opcode = BPF_OP(insn->code);
-	u32 dst = insn->dst_reg, src = insn->src_reg;
+
+	u32 dst = insn->dst_reg;
+
 	int ret;
 
 	dst_reg = &regs[dst];
@@ -3543,26 +3549,57 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
 		/* 32-bit ALU ops on pointers produce (meaningless) scalars */
-		verbose(env, "R%d 32-bit pointer arithmetic prohibited\n",
+		verbose("R%d 32-bit pointer arithmetic prohibited\n",
 			dst);
 		return -EACCES;
 	}
 
-	switch (ptr_reg->type) {
-	case PTR_TO_MAP_VALUE_OR_NULL:
-		verbose(env, "R%d pointer arithmetic on %s prohibited, null-check it first\n",
-			dst, reg_type_str[ptr_reg->type]);
+	if (ptr_reg->type == PTR_TO_MAP_VALUE_OR_NULL) {
+		verbose("R%d pointer arithmetic on PTR_TO_MAP_VALUE_OR_NULL prohibited, null-check it first\n",
+			dst);
 		return -EACCES;
-	case CONST_PTR_TO_MAP:
-	case PTR_TO_PACKET_END:
-	case PTR_TO_SOCKET:
-	case PTR_TO_SOCKET_OR_NULL:
-	case PTR_TO_SOCK_COMMON:
-	case PTR_TO_SOCK_COMMON_OR_NULL:
-	case PTR_TO_TCP_SOCK:
-	case PTR_TO_TCP_SOCK_OR_NULL:
-		verbose(env, "R%d pointer arithmetic on %s prohibited\n",
-			dst, reg_type_str[ptr_reg->type]);
+	}
+	if (ptr_reg->type == CONST_PTR_TO_MAP) {
+		verbose("R%d pointer arithmetic on CONST_PTR_TO_MAP prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_PACKET_END) {
+		verbose("R%d pointer arithmetic on PTR_TO_PACKET_END prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_SOCKET) {
+		verbose("R%d pointer arithmetic on PTR_TO_SOCKET prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_SOCKET_OR_NULL) {
+		verbose("R%d pointer arithmetic on PTR_TO_SOCKET_OR_NULL prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_SOCK_COMMON) {
+		verbose("R%d pointer arithmetic on PTR_TO_SOCK_COMMON prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_SOCK_COMMON_OR_NULL) {
+		verbose("R%d pointer arithmetic on PTR_TO_SOCK_COMMON_OR_NULL prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_TCP_SOCK) {
+		verbose("R%d pointer arithmetic on PTR_TO_TCP_SOCK prohibited\n",
+			dst);
+		return -EACCES;
+	}
+	if (ptr_reg->type == PTR_TO_TCP_SOCK_OR_NULL) {
+		verbose("R%d pointer arithmetic on PTR_TO_TCP_SOCK_OR_NULL prohibited\n",
+			dst);
+		return -EACCES;
+	}
+
 		return -EACCES;
 	case PTR_TO_MAP_VALUE:
 		if (!env->allow_ptr_leaks && !known && (smin_val < 0) != (smax_val < 0)) {
@@ -3573,13 +3610,6 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		/* fall-through */
 	default:
 		break;
-	}
-	if (ptr_reg->type == PTR_TO_MAP_VALUE) {
-		if (!env->allow_ptr_leaks && !known && (smin_val < 0) != (smax_val < 0)) {
-			verbose("R%d has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root\n",
-				off_reg == dst_reg ? dst : src);
-			return -EACCES;
-		}
 	}
 
 	/* In case of 'scalar += pointer', dst_reg inherits pointer type and id.
@@ -3601,11 +3631,6 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	switch (opcode) {
 	case BPF_ADD:
-		ret = sanitize_ptr_alu(env, insn, ptr_reg, dst_reg, smin_val < 0);
-		if (ret < 0) {
-			verbose("R%d tried to add from different maps, paths, or prohibited types\n", dst);
-			return ret;
-		}
 		/* We can take a fixed offset as long as it doesn't overflow
 		 * the s32 'off' field
 		 */
@@ -3657,6 +3682,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		break;
 	case BPF_SUB:
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 		ret = sanitize_ptr_alu(env, insn, ptr_reg, dst_reg, smin_val < 0);
 		if (ret < 0) {
@@ -3667,6 +3693,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		if (dst_reg == off_reg) {
 			/* scalar -= pointer.  Creates an unknown scalar */
 			verbose(env, "R%d tried to subtract pointer from scalar\n",
+=======
+		if (dst_reg == off_reg) {
+			/* scalar -= pointer.  Creates an unknown scalar */
+			verbose("R%d tried to subtract pointer from scalar\n",
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 				dst);
 			return -EACCES;
 		}
@@ -3675,7 +3706,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		 * be able to deal with it.
 		 */
 		if (ptr_reg->type == PTR_TO_STACK) {
+<<<<<<< HEAD
 			verbose(env, "R%d subtraction from stack pointer prohibited\n",
+=======
+			verbose("R%d subtraction from stack pointer prohibited\n",
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 				dst);
 			return -EACCES;
 		}
@@ -3727,12 +3762,20 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	case BPF_OR:
 	case BPF_XOR:
 		/* bitwise ops on pointers are troublesome. */
+<<<<<<< HEAD
 		verbose(env, "R%d bitwise operator %s on pointer prohibited\n",
+=======
+		verbose("R%d bitwise operator %s on pointer prohibited\n",
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 			dst, bpf_alu_string[opcode >> 4]);
 		return -EACCES;
 	default:
 		/* other operators (e.g. MUL,LSH) produce non-pointer results */
+<<<<<<< HEAD
 		verbose(env, "R%d pointer arithmetic with %s operator prohibited\n",
+=======
+		verbose("R%d pointer arithmetic with %s operator prohibited\n",
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 			dst, bpf_alu_string[opcode >> 4]);
 		return -EACCES;
 	}
@@ -4040,10 +4083,17 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				 * pointer subtraction
 				 */
 				if (opcode == BPF_SUB && env->allow_ptr_leaks) {
+<<<<<<< HEAD
 					mark_reg_unknown(env, regs, insn->dst_reg);
 					return 0;
 				}
 				verbose(env, "R%d pointer %s pointer prohibited\n",
+=======
+					mark_reg_unknown(regs, insn->dst_reg);
+					return 0;
+				}
+				verbose("R%d pointer %s pointer prohibited\n",
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 					insn->dst_reg,
 					bpf_alu_string[opcode >> 4]);
 				return -EACCES;
@@ -7030,7 +7080,10 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 				*patch++ = BPF_ALU64_IMM(BPF_ARSH, BPF_REG_AX, 63);
 				*patch++ = BPF_ALU64_REG(BPF_AND, BPF_REG_AX, off_reg);
 			}
+<<<<<<< HEAD
 
+=======
+>>>>>>> e490edb1f (Merge 4.14.236 into android-4.14-stable)
 			if (!issrc)
 				*patch++ = BPF_MOV64_REG(insn->dst_reg, insn->src_reg);
 			insn->src_reg = BPF_REG_AX;

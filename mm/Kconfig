@@ -884,3 +884,12 @@ config OPLUS_MM_HACKS
 	help
 	  Improves memory management as well as swappiness. Used by Oplus
 	  on their devices, and has been tested on multiple devices from other OEMs.
+config LRU_GEN
+	bool "Multi-Gen LRU"
+	depends on MMU
+	# the following options can use up the spare bits in page flags
+	depends on !MAXSMP && (64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP)
+	help
+	  A high performance LRU implementation to overcommit memory.
+
+source "mm/sec_mm/Kconfig"

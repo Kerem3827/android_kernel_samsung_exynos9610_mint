@@ -1590,7 +1590,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ret = platform_get_irq(platdev, 1);
 		if (ret > 0)
 			ourport->tx_irq = ret;
-
+	}
 	if (of_get_property(platdev->dev.of_node,
 			"samsung,separate-uart-clk", NULL))
 		ourport->check_separated_clk = 1;

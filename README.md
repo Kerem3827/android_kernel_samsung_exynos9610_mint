@@ -9,6 +9,7 @@ _Freshen up your Galaxy. An optimized, One UI-first kernel for Samsung Galaxy de
 Supports the following devices:
 
 - Samsung Galaxy A50 (`a50`)
+- Samsung Galaxy A50 (`m30s`)
 
 Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy7/android_kernel_samsung_exynos9610_mint/blob/android-12.0/README_Kernel)
 
@@ -81,6 +82,7 @@ Once you have the prerequisites installed, simply run this on the Terminal.
 
 ```
 - a50 # For Samsung Galaxy A50
+- m30s # For Samsung Galaxy M30S
 ```
 
 More options are available on the script by executing `./build.sh --help|-h`. The script will download all it needs (including the toolchain) and builds a new kernel build for you.

@@ -5954,10 +5954,7 @@ static void r8153_init(struct r8152 *tp)
 
 	r8153_power_cut_en(tp, false);
 	r8153_u1u2en(tp, true);
-<<<<<<< HEAD
-=======
 	usb_enable_lpm(tp->udev);
->>>>>>> d3725be6c586 (Merge 4.14.228 into android-4.14-q)
 
 	/* MAC clock speed down */
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL, 0);

@@ -166,6 +166,30 @@ struct gadget_config_name {
 	struct list_head list;
 };
 
+#ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
+int dwc3_gadget_get_cmply_link_state_wrapper(void)
+{
+	struct gadget_info *dev;
+	struct usb_composite_dev *cdev;
+	struct usb_gadget		*gadget;
+	int ret = -ENODEV;
+
+	if (android_device && !IS_ERR(android_device)) {
+		dev = dev_get_drvdata(android_device);
+		cdev = &dev->cdev;
+		if (cdev) {
+		 	gadget = cdev->gadget;
+			 if (gadget)
+				ret = dwc3_gadget_get_cmply_link_state(gadget);
+			 else
+			 	pr_err("usb: %s:gadget pointer is null\n", __func__);
+		 }
+	}
+	return ret;
+}
+EXPORT_SYMBOL(dwc3_gadget_get_cmply_link_state_wrapper);
+#endif
+
 #define USB_MAX_STRING_WITH_NULL_LEN	(USB_MAX_STRING_LEN+1)
 
 static int usb_string_copy(const char *s, char **s_copy)

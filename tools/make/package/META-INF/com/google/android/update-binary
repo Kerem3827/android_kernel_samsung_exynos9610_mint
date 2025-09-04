@@ -335,24 +335,7 @@ do_levelcheck() {
   [ "$(file_getprop anykernel.sh supported.patchlevels)" ] || return 1;
   local android_lvl hi_lvl lo_lvl parsed_lvl supported_lvl;
   ui_print "  - Checking Android security patch level...";
-  supported_lvl=$(file_getprop anykernel.sh supported.patchlevels | grep -oE '[0-9]{4}-[0-9]{2}|-');
-  android_lvl=$(file_getprop /system/build.prop ro.build.version.security_patch);
-  parsed_lvl=$(echo $android_lvl | grep -oE '[0-9]{4}-[0-9]{2}');
-  if echo $supported_lvl | grep -q '^\-'; then
-    lo_lvl=0000-00;
-    hi_lvl=$(echo $supported_lvl | awk '{ print $2 }');
-  elif echo $supported_lvl | grep -q ' - '; then
-    lo_lvl=$(echo $supported_lvl | awk '{ print $1 }');
-    hi_lvl=$(echo $supported_lvl | awk '{ print $3 }');
-  elif echo $supported_lvl | grep -q '\-$'; then
-    lo_lvl=$(echo $supported_lvl | awk '{ print $1 }');
-    hi_lvl=9999-99;
-  fi;
-  if echo -e "$hi_lvl\n$lo_lvl\n$parsed_lvl" | $BB sort -g | $BB grep -n "$parsed_lvl" | $BB grep -q '^2:'; then
-    ui_print "    - $android_lvl" " ";
-  else
-    abort "    - Unsupported Android security patch level. Aborting...";
-  fi;
+  supported=1;
 }
 do_vendorlevelcheck() {
   [ "$(file_getprop anykernel.sh supported.vendorpatchlevels)" ] || return 1;

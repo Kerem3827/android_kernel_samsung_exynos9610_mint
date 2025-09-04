@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 [ ! -e "KernelSU/kernel/setup.sh" ] && \
-git clone https://github.com/KernelSU-Next/KernelSU-Next KernelSU && 
-cd KernelSU && git checkout 407826396b29430e5f18fadde5d243f45ccca04c && 
+git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra KernelSU && 
+cd KernelSU && git branch v3.1.9 && 
 cd ../
 
 if [[ $BUILD_SUSFS == 'true' && $BUILD_KERNEL_KSU == 'true' ]]; then

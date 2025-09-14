@@ -1993,21 +1993,25 @@ enum {
 };
 
 struct rt5665_priv {
-	struct snd_soc_codec *codec;
-	struct rt5665_platform_data pdata;
-	struct regmap *regmap;
-	struct snd_soc_jack *hs_jack;
-	struct delayed_work jack_detect_work;
-	struct delayed_work jack_detect_open_gender_work;
-	struct delayed_work calibrate_work;
-	struct delayed_work jd_check_work;
-	struct delayed_work ng_check_work;
-	struct delayed_work mic_check_work;
-	struct delayed_work sto1_l_adc_work, sto1_r_adc_work;
-	struct delayed_work mono_l_adc_work, mono_r_adc_work;
-	struct delayed_work sto2_l_adc_work, sto2_r_adc_work;
-	struct wake_lock jack_detect_wake_lock;
-	struct mutex open_gender_mutex;
+    struct snd_soc_codec *codec;
+    struct rt5665_platform_data pdata;
+    struct regmap *regmap;
+    struct snd_soc_jack *hs_jack;
+    struct delayed_work jack_detect_work;
+    struct delayed_work jack_detect_open_gender_work;
+    struct delayed_work calibrate_work;
+    struct delayed_work jd_check_work;
+    struct delayed_work ng_check_work;
+    struct delayed_work mic_check_work;
+    struct delayed_work sto1_l_adc_work, sto1_r_adc_work;
+    struct delayed_work mono_l_adc_work, mono_r_adc_work;
+    struct delayed_work sto2_l_adc_work, sto2_r_adc_work;
+    struct wake_lock jack_detect_wake_lock;
+    struct mutex open_gender_mutex;
+
+    #define RT5665_NUM_SUPPLIES 2
+    struct regulator_bulk_data supplies[RT5665_NUM_SUPPLIES];
+};
 
 	int sysclk;
 	int sysclk_src;

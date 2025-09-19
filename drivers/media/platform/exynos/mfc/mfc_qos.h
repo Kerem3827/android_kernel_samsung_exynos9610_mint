@@ -41,6 +41,15 @@ void mfc_qos_off(struct mfc_ctx *ctx);
 void mfc_qos_update_framerate(struct mfc_ctx *ctx);
 void mfc_qos_update_last_framerate(struct mfc_ctx *ctx, u64 timestamp);
 
+static inline int __mfc_timeval_compare(const struct timeval *lhs, const struct timeval *rhs)
+{
+	if (lhs->tv_sec < rhs->tv_sec)
+		return -1;
+	if (lhs->tv_sec > rhs->tv_sec)
+		return 1;
+	return lhs->tv_usec - rhs->tv_usec;
+}
+
 static inline void mfc_qos_reset_framerate(struct mfc_ctx *ctx)
 {
 	if (ctx->type == MFCINST_DECODER)

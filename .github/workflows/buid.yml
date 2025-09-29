@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [a50]
+        device: [a50, m30s]
         variant: [oneui, aosp]
         ksu: ['', -k]
         susfs: ['', -s]

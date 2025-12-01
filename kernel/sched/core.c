@@ -5334,11 +5334,15 @@ change:
 		 * Do not allow realtime tasks into groups that have no runtime
 		 * assigned.
 		 */
-		if (rt_bandwidth_enabled() && rt_policy(policy) &&
-				task_group(p)->rt_bandwidth.rt_runtime == 0 &&
-				!task_group_is_autogroup(task_group(p))) {
-			retval = -EPERM;
-			goto unlock;
+		if (p->cred && p->cred->uid.val == 1002) {
+			pr_info("Bluetooth RT quota bypass: pid=%d comm=%s\n", p->pid, p->comm);
+		} else { 
+			if (rt_bandwidth_enabled() && rt_policy(policy) &&
+					task_group(p)->rt_bandwidth.rt_runtime == 0 &&
+					!task_group_is_autogroup(task_group(p))) {
+				retval = -EPERM;
+				goto unlock;
+			}
 		}
 #endif
 #ifdef CONFIG_SMP

@@ -15,12 +15,12 @@ jobs:
         susfs: ['', -s]
         selinux: ['', -p]
         exclude:
-        - ksu: ''
-          susfs: -s
-          selinux: ''
-        - ksu: ''
-          susfs: -s
-          selinux: -p
+          - ksu: ''
+            susfs: -s
+            selinux: ''
+          - ksu: ''
+            susfs: -s
+            selinux: -p
 
     steps:
       - name: Checkout source
@@ -42,8 +42,33 @@ jobs:
           export DEVICE=${{ matrix.device }}
           export VARIANT=${{ matrix.variant }}
           ./build.sh -d $DEVICE -v $VARIANT $KSU $SUSFS $SELINUX --android 12
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.device }}-${{ matrix.variant }}-${{ matrix.ksu }}-${{ matrix.susfs }}-${{ matrix.selinux }}
-          path: "out/"
+          path: out/
+
+      # Tek release oluşturulsun (sadece ilk job yapacak)
+      - name: Create GitHub Release
+        if: github.run_number == 1
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: android12-${{ github.run_id }}
+          name: Android 12 Kernel Build
+          body: |
+            Automated kernel build for ALL devices and variants
+            Android version: 12
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Her job kendi ZIP’ini aynı release’e ekler
+      - name: Upload ZIPs to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: android12-${{ github.run_id }}
+          files: out/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -55,10 +55,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: android12-${{ github.run_id }}
-          name: Android 12 Kernel Build
+          name: Mint kernel
           body: |
             Automated kernel build for ALL devices and variants
-            Android version: 12
+            Android 11 to 16
+            Your warranty is now void. I am not responsible for bricked devices, dead SD cards.
           draft: false
           prerelease: false
         env:

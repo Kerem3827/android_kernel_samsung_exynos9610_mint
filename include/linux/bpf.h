@@ -461,6 +461,8 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
 int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
 
 /* an array of programs to be executed under rcu_lock.
  *
@@ -691,6 +693,27 @@ static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
 				enum bpf_prog_type type)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int bpf_prog_test_run_xdp(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_skb(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+						   const union bpf_attr *kattr,
+						   union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
 }
 
 static inline struct net_device  *__dev_map_lookup_elem(struct bpf_map *map,

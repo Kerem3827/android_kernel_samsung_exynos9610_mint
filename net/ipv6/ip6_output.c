@@ -169,6 +169,9 @@ static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	unsigned int mtu;
 	int ret;
 
+	rcu_read_lock();
+	local_bh_disable();
+
 	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
 	if (ret) {
 		kfree_skb(skb);
@@ -184,6 +187,8 @@ static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 #endif
 
 	mtu = ip6_skb_dst_mtu(skb);
+	local_bh_enable();
+	rcu_read_unlock();
 	if (skb_is_gso(skb) && !skb_gso_validate_mtu(skb, mtu))
 		return ip6_finish_output_gso_slowpath_drop(net, sk, skb, mtu);
 

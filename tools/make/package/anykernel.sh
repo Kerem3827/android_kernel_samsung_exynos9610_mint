@@ -77,11 +77,13 @@ if [ ! -z $oneui ]; then
 			cp -rf $AK_FOLDER/files_oneui/system/etc/init/init.mint.rc /system/etc/init/init.mint.rc
 			cp -rf $AK_FOLDER/files_oneui/system/etc/init/init.mint.rc /system_root/system/etc/init/init.mint.rc
 			cp -rf $AK_FOLDER/files_oneui/vendor/etc/fstab.sqzr /vendor/etc/fstab.sqzr
+			cp -rf $AK_FOLDER/patch/longui_metadata_sign.apk /vendor/overlay/longui_metadata_sign.apk
 
 			chmod 644 /system/etc/init/init.mint.rc
 			chmod 644 /system_root/system/etc/init/init.mint.rc
 			chmod 644 /vendor/etc/fstab.sqzr
-
+            chmod 644 /vendor/overlay/longui_metadata_sign.apk
+			
 			# Disable SSWAP for RAM Plus and Pageboost
 			remove_section ${VENDOR_INIT_RC} 'service swapon /system/bin/sswap -s -z -f 2048' 'oneshot'
 			replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.exynos9610' 'swapon_all /vendor/etc/fstab.sqzr' global

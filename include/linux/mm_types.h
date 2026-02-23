@@ -25,8 +25,6 @@
 #endif
 #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 
-typedef int vm_fault_t;
-
 struct address_space;
 struct mem_cgroup;
 struct hmm;
@@ -106,13 +104,6 @@ struct page {
 			 * Indicates order in the buddy system if PageBuddy.
 			 */
 			unsigned long private;
-		};
-		struct {	/* page_pool used by netstack */
-			/**
-			 * @dma_addr: might require a 64-bit value even on
-			 * 32-bit architectures.
-			 */
-			dma_addr_t dma_addr;
 		};
 		struct {	/* slab, slob and slub */
 			struct kmem_cache *slab_cache; /* not slob */
@@ -775,9 +766,9 @@ struct vm_special_mapping {
 	 * If non-NULL, then this is called to resolve page faults
 	 * on the special mapping.  If used, .pages is not checked.
 	 */
-	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
-				struct vm_area_struct *vma,
-				struct vm_fault *vmf);
+	int (*fault)(const struct vm_special_mapping *sm,
+		     struct vm_area_struct *vma,
+		     struct vm_fault *vmf);
 
 	int (*mremap)(const struct vm_special_mapping *sm,
 		     struct vm_area_struct *new_vma);

@@ -56,26 +56,6 @@ struct hmm;
  * in each subpage, but you may need to restore some of their values
  * afterwards.
  *
- * If you allocate the page using alloc_pages(), you can use some of the
- * space in struct page for your own purposes.  The five words in the main
- * union are available, except for bit 0 of the first word which must be
- * kept clear.  Many users use this word to store a pointer to an object
- * which is guaranteed to be aligned.  If you use the same storage as
- * page->mapping, you must restore it to NULL before freeing the page.
- *
- * If your page will not be mapped to userspace, you can also use the four
- * bytes in the mapcount union, but you must call page_mapcount_reset()
- * before freeing it.
- *
- * If you want to use the refcount field, it must be used in such a way
- * that other CPUs temporarily incrementing and then decrementing the
- * refcount does not cause problems.  On receiving the page from
- * alloc_pages(), the refcount will be positive.
- *
- * If you allocate pages of order > 0, you can use some of the fields
- * in each subpage, but you may need to restore some of their values
- * afterwards.
- *
  * SLUB uses cmpxchg_double() to atomically update its freelist and
  * counters.  That requires that freelist & counters be adjacent and
  * double-word aligned.  We align all struct pages to double-word
@@ -129,36 +109,6 @@ struct page {
 #else
 			spinlock_t ptl;
 #endif
-		};
-	};
-
-	union {		/* This union is 4 bytes in size. */
-		/*
-		 * If the page can be mapped to userspace, encodes the number
-		 * of times this page is referenced by a page table.
-		 */
-		atomic_t _mapcount;
-
-		/*
-		 * Mapping-private opaque data:
-		 * Usually used for buffer_heads if PagePrivate
-		 * Used for swp_entry_t if PageSwapCache
-		 * Indicates order in the buddy system if PageBuddy
-		 */
-		unsigned long private;
-#if USE_SPLIT_PTE_PTLOCKS
-#if ALLOC_SPLIT_PTLOCKS
-		spinlock_t *ptl;
-#else
-		spinlock_t ptl;
-#endif
-#endif
-		void *s_mem;			/* slab first object */
-		unsigned long counters;		/* SLUB */
-		struct {			/* SLUB */
-			unsigned inuse:16;
-			unsigned objects:15;
-			unsigned frozen:1;
 		};
 	};
 

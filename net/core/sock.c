@@ -628,8 +628,8 @@ out:
 	return ret;
 }
 
-static int sock_getbindtodevice(struct sock *sk, sockptr_t optval,
-				sockptr_t optlen, int len)
+static int sock_getbindtodevice(struct sock *sk, char __user *optval,
+				int __user *optlen, int len)
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
@@ -652,12 +652,12 @@ static int sock_getbindtodevice(struct sock *sk, sockptr_t optval,
 	len = strlen(devname) + 1;
 
 	ret = -EFAULT;
-	if (copy_to_sockptr(optval, devname, len))
+	if (copy_to_user(optval, devname, len))
 		goto out;
 
 zero:
 	ret = -EFAULT;
-	if (copy_to_sockptr(optlen, &len, sizeof(int)))
+	if (put_user(len, optlen))
 		goto out;
 
 	ret = 0;
@@ -1207,23 +1207,20 @@ static void cred_to_ucred(struct pid *pid, const struct cred *cred,
 	}
 }
 
-static int groups_to_user(sockptr_t dst, const struct group_info *src)
+static int groups_to_user(gid_t __user *dst, const struct group_info *src)
 {
 	struct user_namespace *user_ns = current_user_ns();
 	int i;
 
-	for (i = 0; i < src->ngroups; i++) {
-		gid_t gid = from_kgid_munged(user_ns, src->gid[i]);
-
-		if (copy_to_sockptr_offset(dst, i * sizeof(gid), &gid, sizeof(gid)))
+	for (i = 0; i < src->ngroups; i++)
+		if (put_user(from_kgid_munged(user_ns, src->gid[i]), dst + i))
 			return -EFAULT;
-	}
 
 	return 0;
 }
 
 static int sk_getsockopt(struct sock *sk, int level, int optname,
-			 sockptr_t optval, sockptr_t optlen)
+			 char __user *optval, int __user *optlen)
 {
 	struct socket *sock = sk->sk_socket;
 
@@ -1237,7 +1234,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 	int lv = sizeof(int);
 	int len;
 
-	if (copy_from_sockptr(&len, optlen, sizeof(int)))
+	if (get_user(len, optlen))
 		return -EFAULT;
 	if (len < 0)
 		return -EINVAL;
@@ -1374,7 +1371,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
 		spin_unlock(&sk->sk_peer_lock);
 
-		if (copy_to_sockptr(optval, &peercred, len))
+		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
 		goto lenout;
 	}
@@ -1392,11 +1389,11 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 		if (len < n * sizeof(gid_t)) {
 			len = n * sizeof(gid_t);
 			put_cred(cred);
-			return copy_to_sockptr(optlen, &len, sizeof(int)) ? -EFAULT : -ERANGE;
+			return put_user(len, optlen) ? -EFAULT : -ERANGE;
 		}
 		len = n * sizeof(gid_t);
 
-		ret = groups_to_user(optval, cred->group_info);
+		ret = groups_to_user((gid_t __user *)optval, cred->group_info);
 		put_cred(cred);
 		if (ret)
 			return ret;
@@ -1411,7 +1408,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 			return -ENOTCONN;
 		if (lv < len)
 			return -EINVAL;
-		if (copy_to_sockptr(optval, address, len))
+		if (copy_to_user(optval, address, len))
 			return -EFAULT;
 		goto lenout;
 	}
@@ -1428,7 +1425,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_PEERSEC:
-		return security_socket_getpeersec_stream(sock, optval.user, optlen.user, len);
+		return security_socket_getpeersec_stream(sock, optval, optlen, len);
 
 	case SO_MARK:
 		v.val = sk->sk_mark;
@@ -1456,7 +1453,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 		return sock_getbindtodevice(sk, optval, optlen, len);
 
 	case SO_GET_FILTER:
-		len = sk_get_filter(sk, optval, len);
+		len = sk_get_filter(sk, (struct sock_filter __user *)optval, len);
 		if (len < 0)
 			return len;
 
@@ -1496,7 +1493,7 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 		sk_get_meminfo(sk, meminfo);
 
 		len = min_t(unsigned int, len, sizeof(meminfo));
-		if (copy_to_sockptr(optval, &meminfo, len))
+		if (copy_to_user(optval, &meminfo, len))
 			return -EFAULT;
 
 		goto lenout;
@@ -1533,10 +1530,10 @@ static int sk_getsockopt(struct sock *sk, int level, int optname,
 
 	if (len > lv)
 		len = lv;
-	if (copy_to_sockptr(optval, &v, len))
+	if (copy_to_user(optval, &v, len))
 		return -EFAULT;
 lenout:
-	if (copy_to_sockptr(optlen, &len, sizeof(int)))
+	if (put_user(len, optlen))
 		return -EFAULT;
 	return 0;
 }
@@ -1544,9 +1541,7 @@ lenout:
 int sock_getsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
-	return sk_getsockopt(sock->sk, level, optname,
-			     USER_SOCKPTR(optval),
-			     USER_SOCKPTR(optlen));
+	return sk_getsockopt(sock->sk, level, optname, optval, optlen);
 }
 
 /*

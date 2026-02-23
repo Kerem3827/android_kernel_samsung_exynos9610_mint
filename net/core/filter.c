@@ -5974,7 +5974,8 @@ int sk_detach_filter(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
 
-int sk_get_filter(struct sock *sk, sockptr_t optval, unsigned int len)
+int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
+		  unsigned int len)
 {
 	struct sock_fprog_kern *fprog;
 	struct sk_filter *filter;
@@ -6005,7 +6006,7 @@ int sk_get_filter(struct sock *sk, sockptr_t optval, unsigned int len)
 		goto out;
 
 	ret = -EFAULT;
-	if (copy_to_sockptr(optval, fprog->filter, bpf_classic_proglen(fprog)))
+	if (copy_to_user(ubuf, fprog->filter, bpf_classic_proglen(fprog)))
 		goto out;
 
 	/* Instead of bytes, the API requests to return the number

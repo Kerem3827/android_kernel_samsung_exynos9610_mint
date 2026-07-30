@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         device: [a50, m30s]
-        variant: [oneui, aosp]
+        variant: [oneui, aosp, recovery]
         ksu: ['', -k]
         susfs: ['', -s]
         selinux: ['', -p]
